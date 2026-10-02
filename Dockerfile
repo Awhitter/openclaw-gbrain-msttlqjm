@@ -7,7 +7,7 @@
 # to apply the schema, then execs `alphaclaw start`, which runs the
 # AlphaClaw watchdog and the OpenClaw gateway.
 
-FROM node:22-slim
+FROM node:24.21.0-slim
 
 # System deps:
 #   - git, curl: required by AlphaClaw + GBrain install paths
@@ -27,16 +27,16 @@ WORKDIR /app
 
 # Install bun (GBrain ships as a Bun package).
 # Pin to a known-good version so builds are reproducible.
-# GBrain's package.json requires "bun": ">=1.3.10".
+# GBrain's package.json requires "bun": ">=1.4.0".
 ENV BUN_INSTALL=/usr/local/bun
 ENV PATH=$BUN_INSTALL/bin:/app/node_modules/.bin:$PATH
-RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.13" \
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.2" \
     && bun --version
 
 # Install AlphaClaw (which pulls in OpenClaw as a managed dependency).
 # Keeping this in its own layer so AlphaClaw version bumps don't bust the bun layer.
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 # Install GBrain globally so the `gbrain` CLI is on PATH for the entrypoint
 # and for any skills that shell out to it.
@@ -50,10 +50,12 @@ RUN npm install --omit=dev
 # step is fast and the build log stays clean — the entrypoint runs
 # `gbrain init --pglite` at boot, which creates the brain and applies
 # migrations against the persistent disk.
-ARG GBRAIN_REF=5008b287e47bf791132eedfebf66bdef11e9398c
-ENV npm_config_ignore_scripts=true
-RUN bun add -g "github:garrytan/gbrain#${GBRAIN_REF}" \
-    && gbrain --version || true
+ARG GBRAIN_REF=d44296cf4d6481a10eb85562d3179e38cfd02c43
+ENV GBRAIN_NO_AUTOPILOT_INSTALL=1
+ENV GBRAIN_NO_REEMBED=1
+ENV GBRAIN_RELEASE=$GBRAIN_REF
+RUN bun add -g --ignore-scripts "github:garrytan/gbrain#${GBRAIN_REF}" \
+    && gbrain --version
 
 # Skill pack: GBrain's fat-markdown skills (ingest, query, maintain, enrich,
 # briefing, migrate, install, and ~40 more). They live at the repo root
