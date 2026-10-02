@@ -46,8 +46,27 @@ if [ ! -f "$GBRAIN_HOME/.gbrain/config.json" ]; then
   log "Running first-time gbrain init (PGLite engine)..."
   gbrain init --pglite --non-interactive
 else
-  log "gbrain config found at $GBRAIN_HOME/.gbrain/config.json, skipping init."
+  # AlphaClaw has not started yet, so PGLite has no competing writer. Keep a
+  # complete pre-upgrade copy before touching an existing brain's schema.
+  release="${GBRAIN_RELEASE:?GBRAIN_RELEASE is required for upgrades}"
+  marker="$GBRAIN_HOME/.gbrain/.container-release"
+  if [ "$(cat "$marker" 2>/dev/null || true)" != "$release" ]; then
+    backup="$GBRAIN_HOME/backups/gbrain-before-$release"
+    mkdir -p "$GBRAIN_HOME/backups"
+    chmod 700 "$GBRAIN_HOME/backups"
+    if [ ! -d "$backup" ]; then
+      staging="$(mktemp -d "$GBRAIN_HOME/backups/.upgrade.XXXXXX")"
+      cp -a "$GBRAIN_HOME/.gbrain/." "$staging/"
+      mv "$staging" "$backup"
+    fi
+    log "Applying GBrain migrations; pre-upgrade copy retained on the persistent disk."
+    GBRAIN_NO_AUTOPILOT_INSTALL=1 GBRAIN_NO_REEMBED=1 \
+      gbrain apply-migrations --yes --non-interactive --no-autopilot-install
+    GBRAIN_NO_AUTOPILOT_INSTALL=1 GBRAIN_NO_REEMBED=1 \
+      gbrain post-upgrade --no-autopilot-install
+  fi
 fi
+printf '%s\n' "${GBRAIN_RELEASE:?GBRAIN_RELEASE is required}" > "$GBRAIN_HOME/.gbrain/.container-release"
 
 # ---------------------------------------------------------------------------
 # 3. Seed the GBrain skill pack into the AlphaClaw skills directory.

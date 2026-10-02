@@ -131,3 +131,35 @@ PGLite ([@electric-sql/pglite](https://github.com/electric-sql/pglite)) is GBrai
 ## License
 
 MIT for the template itself. AlphaClaw, OpenClaw, and GBrain each ship under their own licenses (MIT at last check). See upstream repos.
+
+## Pinned upgrade (2026-10-02)
+
+The image pins Node 24.21.0, Bun 1.4.2, AlphaClaw 0.9.36 (OpenClaw
+2026.9.3), and GBrain stable commit
+`d44296cf4d6481a10eb85562d3179e38cfd02c43` (0.60.30.0).
+`npm ci` uses the checked-in lockfile; a failed GBrain installation fails the build.
+
+On the first boot of a new image revision, an existing brain is copied to
+`/data/backups/gbrain-before-<revision>` before migrations run. A failed migration
+prevents AlphaClaw from starting and preserves that original copy for recovery.
+Subsequent boots skip completed migrations. Automatic background-service
+installation and re-embedding are disabled during this memory-only upgrade.
+Keep the persistent disk attached; never restore over a running PGLite process.
+
+### K2 connection
+
+AlphaClaw's native remote MCP configuration uses these Render environment variables:
+
+- `REMOTE_MCP_NAME=katailyst2`
+- `REMOTE_MCP_URL=https://katailyst2.vercel.app/api/mcp`
+- `REMOTE_MCP_API_TOKEN`: a dedicated K2 credential for this agent, stored privately
+  through the deployment environment. Do not reuse Mira's or another agent's token.
+
+The gateway stores a variable reference instead of the bearer value in its JSON
+configuration. Setting these variables alone is not activation: finish onboarding,
+then verify a real K2 tool call through OpenClaw. The setup wizard requires a
+separate chat-channel credential and a workspace repository. `/health` can return
+HTTP 200 before onboarding; check authenticated `/api/onboard/status` and
+`/api/status` before reporting readiness.
+
+Focused entrypoint proof: `python3 -m unittest discover -s tests -v`.
