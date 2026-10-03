@@ -107,7 +107,7 @@ if (require.main === module) {
   ].map(([relative, transform]) => {
     const file = path.join(base, relative);
     const patched = transform(fs.readFileSync(file, 'utf8'));
-    new Function('require', 'module', 'exports', patched);
+    new Function('require', 'module', 'exports', patched.replace(/^#![^\n]*\n/, ''));
     return [file, patched];
   });
   for (const [file, patched] of changes) fs.writeFileSync(file, patched);
