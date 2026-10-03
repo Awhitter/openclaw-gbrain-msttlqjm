@@ -13,3 +13,13 @@ test('memory wiring preserves K2 and existing skills, remains idempotent, and st
   assert.ok(!JSON.stringify(cfg).includes('fixture-secret'));
   assert.equal(cfg.mcp.servers.gbrain.supportsParallelToolCalls, false);
 });
+test('strong model defaults preserve explicit user choices', () => {
+ const cfg={agents:{defaults:{model:{primary:'openai/gpt-6-astra'}}}};
+ const env={GBRAIN_WEB_CHAT:'1',GBRAIN_LOCAL_MCP_TOKEN:'fixture'};
+ configure(cfg,env);
+ assert.equal(cfg.agents.defaults.thinkingDefault,'high');
+ assert.deepEqual(cfg.agents.defaults.model.fallbacks,['anthropic/claude-opus-5-5']);
+ cfg.agents.defaults.thinkingDefault='medium'; cfg.agents.defaults.model.fallbacks=[];
+ configure(cfg,env);assert.equal(cfg.agents.defaults.thinkingDefault,'medium');
+ assert.deepEqual(cfg.agents.defaults.model.fallbacks,[]);
+});

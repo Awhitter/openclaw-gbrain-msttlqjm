@@ -39,6 +39,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY patch-alphaclaw.cjs ./
 RUN node patch-alphaclaw.cjs
+COPY migrate-openclaw.cjs /app/node_modules/@chrysb/alphaclaw/lib/scripts/migrate-openclaw-codex.js
 COPY gbrain-config.cjs supervise.cjs ./
 COPY managed-skills ./managed-skills
 

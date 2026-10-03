@@ -16,6 +16,7 @@ test('web profile is explicit; provider credentials remain required',()=>{
  delete process.env.GBRAIN_WEB_CHAT;
  assert.equal(validateOnboardingInput({...base,vars}).ok,false);
  process.env.GBRAIN_WEB_CHAT='1';
+ process.env.OPENAI_API_KEY='fixture-provider-key';
  assert.equal(validateOnboardingInput({...base,vars:vars.slice(0,1)}).ok,false);
  assert.equal(validateOnboardingInput({...base,vars:vars.slice(1)}).ok,false);
  assert.equal(validateOnboardingInput({...base,vars}).ok,true);
@@ -51,12 +52,13 @@ test('browser profile completes real OpenClaw onboarding with valid managed conf
  const {execSync}=require('node:child_process');
  process.env.GBRAIN_WEB_CHAT='1';
  const constants={OPENCLAW_DIR:path.join(root,'.openclaw'),WORKSPACE_DIR:path.join(root,'.openclaw/workspace'),kOnboardingMarkerPath:path.join(root,'onboarded.json')};
- const env={...process.env,PATH:path.resolve('node_modules/.bin')+':'+process.env.PATH,OPENCLAW_CONFIG_PATH:path.join(constants.OPENCLAW_DIR,'openclaw.json')};
+ const env={...process.env,OPENAI_API_KEY:'fixture-provider-key',PATH:path.resolve('node_modules/.bin')+':'+process.env.PATH,OPENCLAW_CONFIG_PATH:path.join(constants.OPENCLAW_DIR,'openclaw.json')};
  let booted=false;
  const commands=[];
  const service=createOnboardingService({fs,constants,
   shellCmd:async(command,options={})=>{commands.push(command);return execSync(command,{...options,env:{...env,...options.env},encoding:'utf8',stdio:'pipe'})},
   gatewayEnv:()=>env,readEnvFile:()=>[],writeEnvFile:()=>{},reloadEnv:()=>{},
+  authProfiles:require('@chrysb/alphaclaw/lib/server/auth-profiles').createAuthProfiles(),
   resolveGithubRepoUrl:()=>{throw new Error('unexpected GitHub dependency')},
   resolveModelProvider:base.resolveModelProvider,hasCodexOauthProfile:()=>false,
   ensureGatewayProxyConfig:()=>{},getBaseUrl:()=> 'https://fixture.invalid',runOnboardedBootSequence:()=>{booted=true},
@@ -75,4 +77,7 @@ test('browser profile completes real OpenClaw onboarding with valid managed conf
  const cfg=JSON.parse(fs.readFileSync(env.OPENCLAW_CONFIG_PATH,'utf8'));
  assert.equal(cfg.gateway.auth.mode,'token');assert.equal(cfg.gateway.bind,'loopback');
  assert.equal(cfg.agents.defaults.model.primary,modelKey);
+ // A later wrapper-side credential save must not reintroduce an unreadable legacy store.
+ require('@chrysb/alphaclaw/lib/server/auth-profiles').createAuthProfiles().upsertApiKeyProfileForEnvVar('openai','fixture-provider-key');
+ execSync('openclaw models status --json',{env,stdio:'pipe'});
 });

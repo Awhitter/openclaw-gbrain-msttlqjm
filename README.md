@@ -2,6 +2,8 @@
 
 ## GBrain browser deployment
 
+The deployed conversational profile uses GPT-6 Astra with high reasoning and Claude Opus 5.5 as a provider fallback. Browser mode authenticates providers through Render's existing environment. Wrapper-side credential updates are normalized with OpenClaw's supported public migration command before use; no private OpenClaw module names are relied upon.
+
 The managed deployment pins AlphaClaw **0.9.36**, OpenClaw **2026.9.8**, and GBrain **v0.60.32.0** (commit `48ed5e8233f617479df989998560840747af0425`). OpenClaw's patch release is explicitly overridden and tested with the wrapper's real onboarding sequence.
 
 `GBRAIN_WEB_CHAT=1` enables authenticated browser-only onboarding. Submit that same flag and a provider credential to the existing `/api/onboard` endpoint with the selected model. This mode uses the persistent workspace without requiring GitHub or a Slack bot. Normal channel-based onboarding is unchanged. GitHub sync is not configured in this mode. The existing setup password and gateway token remain required.
