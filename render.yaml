@@ -47,3 +47,5 @@ services:
       # Both persist across deploys via the disk.
       - key: GBRAIN_HOME
         value: /data
+      - key: GBRAIN_WEB_CHAT
+        value: "1"

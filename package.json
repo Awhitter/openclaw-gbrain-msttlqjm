@@ -5,5 +5,8 @@
   "description": "Render Blueprint for OpenClaw + AlphaClaw with GBrain pre-installed as a skill pack.",
   "dependencies": {
     "@chrysb/alphaclaw": "0.9.36"
+  },
+  "overrides": {
+    "openclaw": "2026.9.8"
   }
 }

@@ -83,4 +83,7 @@ fi
 # 4. Hand off to AlphaClaw.
 # ---------------------------------------------------------------------------
 log "Starting AlphaClaw..."
+if [ "${GBRAIN_WEB_CHAT:-}" = "1" ]; then
+  exec node /app/supervise.cjs "$@"
+fi
 exec "$@"

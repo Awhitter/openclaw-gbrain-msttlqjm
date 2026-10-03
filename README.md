@@ -1,5 +1,19 @@
 # OpenClaw + AlphaClaw + GBrain on Render
 
+## GBrain browser deployment
+
+The managed deployment pins AlphaClaw **0.9.36**, OpenClaw **2026.9.8**, and GBrain **v0.60.32.0** (commit `48ed5e8233f617479df989998560840747af0425`). OpenClaw's patch release is explicitly overridden and tested with the wrapper's real onboarding sequence.
+
+`GBRAIN_WEB_CHAT=1` enables authenticated browser-only onboarding. Submit that same flag and a provider credential to the existing `/api/onboard` endpoint with the selected model. This mode uses the persistent workspace without requiring GitHub or a Slack bot. Normal channel-based onboarding is unchanged. GitHub sync is not configured in this mode. The existing setup password and gateway token remain required.
+
+After onboarding, use AlphaClaw's OpenClaw dashboard link for browser chat. This deployment connects the agent to both Katailyst2 and a single loopback GBrain HTTP MCP server. The memory service owns PGLite so concurrent conversations cannot launch competing database processes. Scoped memory credentials are created before the service starts and retained in private files on the persistent disk; tokens never appear in startup logs. If either required service exits, the container exits so Render can restart the complete runtime.
+
+Versioned GBrain skills load directly from `/app/skills-seed`, with deployment guidance from `/app/managed-skills`. Old copies in `/data/skills` are retained but not automatically preferred over the current release. Custom skills belong in the OpenClaw workspace's `skills` directory. Use MCP memory tools rather than database-opening CLI commands while the shared memory service runs.
+
+Upgrades retain a pre-migration disk copy. That copy shares the production disk and is not an offsite backup. Provider-managed disk snapshots should be verified separately. No paid bulk ingestion or background re-embedding is started automatically.
+
+Validation: `node --test tests/*.test.cjs` exercises real isolated OpenClaw onboarding and config validation; `python3 -m unittest discover -s tests` checks migration and backup behavior. The real onboarding test may fetch OpenClaw's required Codex runtime from npm, so it needs network access. It uses fixture provider credentials and sends no model request.
+
 > [!TIP]
 > **Render sponsors AlphaClaw.**
 >
@@ -13,7 +27,7 @@ One-click Render deploy for [OpenClaw](https://github.com/openclaw/openclaw) wra
 
 - **AlphaClaw + OpenClaw**, same setup as the [base Render template](https://github.com/chrysb/openclaw-render-template): browser-based setup wizard, watchdog, in-app updates handled by Render.
 - **GBrain**, a Postgres-native knowledge brain with hybrid search (vector + keyword + RRF fusion + multi-query expansion), running on embedded **PGLite** so the brain lives entirely in-process — no external database to manage.
-- **GBrain skill pack** pre-seeded into `$ALPHACLAW_ROOT_DIR/skills` (ingest, query, maintain, enrich, briefing, install, and more). OpenClaw discovers them automatically on first boot.
+- **GBrain skill pack** loaded from the versioned image (ingest, query, maintain, enrich, briefing, install, and more).
 - **One container, one disk.** No external Postgres, no second billing line, no second dashboard.
 
 ## What this template provisions
@@ -27,7 +41,7 @@ Check [render.com/pricing](https://render.com/pricing) for current rates.
 
 ### Sizing guidance
 
-PGLite runs in the same process as the OpenClaw gateway, so memory pressure scales with brain size on top of the gateway baseline. Rough guidance:
+PGLite runs in a supervised process alongside the OpenClaw gateway, so memory pressure scales with brain size on top of the gateway baseline. Rough guidance:
 
 | Brain size | Recommended plan |
 | --- | --- |
@@ -72,7 +86,7 @@ You: Search the brain for everything we know about <topic>
 You: Give me a briefing for tomorrow
 ```
 
-OpenClaw reads the skill files in `/data/skills`, picks the right `gbrain` command, and runs it. You do not need to touch the CLI.
+OpenClaw reads the versioned skill files and uses the shared GBrain MCP service. You do not need to touch the CLI.
 
 ## Importing your existing knowledge base
 
