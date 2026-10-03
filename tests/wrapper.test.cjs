@@ -3,6 +3,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const {patchEnv, patchCommands} = require('../patch-alphaclaw.cjs');
+test('restart reconciliation follows the installed OpenClaw version, never the wrapper old pin', () => {
+ const module={exports:{}};
+ const source=require('../patch-alphaclaw.cjs').patchCodexReconcile(fs.readFileSync(require.resolve('@chrysb/alphaclaw/lib/scripts/reconcile-codex-plugin.js'),'utf8'));
+ vm.runInNewContext(source,{module,process:{env:{}},console,require:name=>name==='openclaw/package.json'?{version:'2026.9.8'}:name==='child_process'?{}:{parseJsonObjectFromNoisyOutput:JSON.parse}});
+ const calls=[];
+ const result=module.exports.reconcileCodexPlugin({logger:{log:()=>{}},exec:(command,args)=>{calls.push(args);return JSON.stringify({plugins:[{id:'codex',origin:'global',version:'2026.9.3'}]});}});
+ assert.equal(result.version,'2026.9.8');assert.equal(calls[1][2],'@openclaw/codex@2026.9.8');
+});
 test('browser deployment auth survives empty wrapper env values', () => {
  const env={GBRAIN_WEB_CHAT:'1',SETUP_PASSWORD:'fixture-password'};
  const module={exports:{}};
