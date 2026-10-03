@@ -40,7 +40,7 @@ RUN npm ci --omit=dev
 COPY patch-alphaclaw.cjs ./
 RUN node patch-alphaclaw.cjs
 COPY migrate-openclaw.cjs /app/node_modules/@chrysb/alphaclaw/lib/scripts/migrate-openclaw-codex.js
-COPY gbrain-config.cjs supervise.cjs ./
+COPY gbrain-config.cjs supervise.cjs shutdown-child.cjs ./
 COPY managed-skills ./managed-skills
 
 # Install GBrain globally so the `gbrain` CLI is on PATH for the entrypoint
