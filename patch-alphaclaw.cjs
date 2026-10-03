@@ -49,9 +49,12 @@ function patchService(source) {
 }
 
 function patchGateway(source) {
-  return replaceOnce(source,
+  source = replaceOnce(source,
     '    if (mcpChanged) changed = true;',
     '    if (mcpChanged) changed = true;\n    if (require("/app/gbrain-config.cjs").configure(cfg)) changed = true;');
+  const old = 'const attachGatewaySignalHandlers = () => {\n  process.on("SIGTERM", () => {\n    runGatewayCmd("stop");\n    process.exit(0);\n  });\n  process.on("SIGINT", () => {\n    runGatewayCmd("stop");\n    process.exit(0);\n  });\n};';
+  return replaceOnce(source, old,
+    'const attachGatewaySignalHandlers = () => {\n  let shuttingDown = false;\n  const shutdown = async () => {\n    if (shuttingDown) return; shuttingDown = true;\n    markManagedGatewayExitExpected();\n    if (gatewayChild) await require("/app/shutdown-child.cjs").stopChild(gatewayChild);\n    else runGatewayShortCmd("stop --force");\n    process.exit(0);\n  };\n  process.once("SIGTERM", shutdown);\n  process.once("SIGINT", shutdown);\n};');
 }
 
 function patchEnv(source) {

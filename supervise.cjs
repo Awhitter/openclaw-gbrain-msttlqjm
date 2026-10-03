@@ -5,16 +5,16 @@ const crypto = require('node:crypto');
 const {spawn, execFileSync} = require('node:child_process');
 const children = [];
 let stopping = false;
-function stop(code) {
+async function stop(code) {
   if (stopping) return;
   stopping = true;
-  for (const child of children) if (child.exitCode === null) child.kill('SIGTERM');
   const timer = setTimeout(() => {
     for (const child of children) if (child.exitCode === null) child.kill('SIGKILL');
     process.exit(code);
-  }, 15000);
-  const check = () => {if (children.every(c => c.exitCode !== null || c.signalCode !== null)) {clearTimeout(timer); process.exit(code);}};
-  children.forEach(c => c.once('exit', check)); check();
+  }, 25000);
+  // Finish the gateway first, keeping its memory service available for cleanup.
+  for (const child of [...children].reverse()) await require('./shutdown-child.cjs').stopChild(child);
+  clearTimeout(timer); process.exit(code);
 }
 function start(command, args) {
   const child = spawn(command, args, {env: process.env, stdio: 'inherit'});
