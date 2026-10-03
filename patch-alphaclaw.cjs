@@ -88,6 +88,11 @@ function patchAuthProfiles(source) {
   return source;
 }
 
+function patchCodexReconcile(source) {
+  source = replaceOnce(source, 'const pkg = require("../../package.json");', 'const pkg = require("openclaw/package.json");');
+  return replaceOnce(source, 'String(pkg.dependencies?.openclaw || "").trim()', 'String(pkg.version || "").trim()');
+}
+
 if (require.main === module) {
   const base = path.dirname(require.resolve('@chrysb/alphaclaw/package.json'));
   const changes = [
@@ -98,6 +103,7 @@ if (require.main === module) {
     ['lib/server/commands.js', patchCommands],
     ['lib/server/routes/system.js', patchSystem],
     ['lib/server/auth-profiles.js', patchAuthProfiles],
+    ['lib/scripts/reconcile-codex-plugin.js', patchCodexReconcile],
   ].map(([relative, transform]) => {
     const file = path.join(base, relative);
     const patched = transform(fs.readFileSync(file, 'utf8'));
@@ -107,4 +113,4 @@ if (require.main === module) {
   for (const [file, patched] of changes) fs.writeFileSync(file, patched);
   console.log('Applied explicit authenticated browser-chat onboarding profile');
 }
-module.exports = {patchValidation, patchService, patchGateway, patchEnv, patchCommands, patchSystem, patchAuthProfiles};
+module.exports = {patchValidation, patchService, patchGateway, patchEnv, patchCommands, patchSystem, patchAuthProfiles, patchCodexReconcile};
