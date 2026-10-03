@@ -22,6 +22,12 @@ function patchService(source) {
     '    upsertEnvVar(varsToSave, "GITHUB_WORKSPACE_REPO", repoUrl);',
     '    if (!localWorkspace) upsertEnvVar(varsToSave, "GITHUB_WORKSPACE_REPO", repoUrl);');
   source = replaceOnce(source,
+    '    syncApiKeyAuthProfilesFromEnvVars(authProfiles, varsToSave);',
+    '    if (!localWorkspace) syncApiKeyAuthProfilesFromEnvVars(authProfiles, varsToSave);');
+  source = replaceOnce(source,
+    '        workspaceDir: WORKSPACE_DIR,\n      });\n      await shellCmd(',
+    '        workspaceDir: WORKSPACE_DIR,\n      });\n      if (localWorkspace) {\n        const authIndex = onboardArgs.indexOf("--auth-choice");\n        if (authIndex >= 0) onboardArgs.splice(authIndex);\n        onboardArgs.push("--auth-choice", "skip"); // Provider keys are already in the managed runtime environment.\n      }\n      await shellCmd(');
+  source = replaceOnce(source,
     '    const repoCheck = await ensureGithubRepoAccessible({',
     '    const repoCheck = localWorkspace ? { ok: true } : await ensureGithubRepoAccessible({');
   source = replaceOnce(source,
@@ -72,6 +78,16 @@ function patchSystem(source) {
     'const result = await clawCmd(command, { quiet: true, timeoutMs: 180000 });');
 }
 
+function patchAuthProfiles(source) {
+  source = replaceOnce(source,
+    '        provider,\n        key,\n      },\n      agentId,',
+    '        provider,\n        ...(getEnvVarForApiKeyProvider(provider) ? {keyRef: {source: "env", provider: "default", id: getEnvVarForApiKeyProvider(provider)}} : {key}),\n      },\n      agentId,');
+  source = replaceOnce(source, 'const saveAuthStore = (agentId, store) => {', 'const saveLegacyAuthStore = (agentId, store) => {');
+  source = replaceOnce(source, 'const createAuthProfiles = () => {',
+    'const saveAuthStore = (agentId, store) => {\n  saveLegacyAuthStore(agentId, store);\n  if (process.env.GBRAIN_WEB_CHAT === "1") require("node:child_process").execFileSync("openclaw", ["doctor", "--fix", "--non-interactive"], {env: {...process.env, OPENCLAW_STATE_DIR: OPENCLAW_DIR, OPENCLAW_CONFIG_PATH: path.join(OPENCLAW_DIR, "openclaw.json")}, stdio: ["ignore", "pipe", "pipe"], timeout: 120000});\n};\nconst createAuthProfiles = () => {');
+  return source;
+}
+
 if (require.main === module) {
   const base = path.dirname(require.resolve('@chrysb/alphaclaw/package.json'));
   const changes = [
@@ -81,6 +97,7 @@ if (require.main === module) {
     ['lib/server/env.js', patchEnv],
     ['lib/server/commands.js', patchCommands],
     ['lib/server/routes/system.js', patchSystem],
+    ['lib/server/auth-profiles.js', patchAuthProfiles],
   ].map(([relative, transform]) => {
     const file = path.join(base, relative);
     const patched = transform(fs.readFileSync(file, 'utf8'));
@@ -90,4 +107,4 @@ if (require.main === module) {
   for (const [file, patched] of changes) fs.writeFileSync(file, patched);
   console.log('Applied explicit authenticated browser-chat onboarding profile');
 }
-module.exports = {patchValidation, patchService, patchGateway, patchEnv, patchCommands, patchSystem};
+module.exports = {patchValidation, patchService, patchGateway, patchEnv, patchCommands, patchSystem, patchAuthProfiles};

@@ -2,6 +2,11 @@
 function configure(cfg, env = process.env) {
   if (env.GBRAIN_WEB_CHAT !== '1' || !env.GBRAIN_LOCAL_MCP_TOKEN) return false;
   const before = JSON.stringify(cfg);
+  cfg.agents ??= {}; cfg.agents.defaults ??= {};
+  cfg.agents.defaults.thinkingDefault ??= 'high';
+  if (cfg.agents.defaults.model?.primary === 'openai/gpt-6-astra') {
+    cfg.agents.defaults.model.fallbacks ??= ['anthropic/claude-opus-5-5'];
+  }
   cfg.mcp ??= {}; cfg.mcp.servers ??= {};
   cfg.mcp.servers.gbrain = {
     url: 'http://127.0.0.1:3131/mcp', transport: 'streamable-http',
