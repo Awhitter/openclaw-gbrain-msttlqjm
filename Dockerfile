@@ -37,6 +37,10 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.2" \
 # Keeping this in its own layer so AlphaClaw version bumps don't bust the bun layer.
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
+COPY patch-alphaclaw.cjs ./
+RUN node patch-alphaclaw.cjs
+COPY gbrain-config.cjs supervise.cjs ./
+COPY managed-skills ./managed-skills
 
 # Install GBrain globally so the `gbrain` CLI is on PATH for the entrypoint
 # and for any skills that shell out to it.
@@ -50,7 +54,7 @@ RUN npm ci --omit=dev
 # step is fast and the build log stays clean — the entrypoint runs
 # `gbrain init --pglite` at boot, which creates the brain and applies
 # migrations against the persistent disk.
-ARG GBRAIN_REF=d44296cf4d6481a10eb85562d3179e38cfd02c43
+ARG GBRAIN_REF=48ed5e8233f617479df989998560840747af0425
 ENV GBRAIN_NO_AUTOPILOT_INSTALL=1
 ENV GBRAIN_NO_REEMBED=1
 ENV GBRAIN_RELEASE=$GBRAIN_REF
@@ -75,7 +79,7 @@ RUN mkdir -p /app/skills-seed \
          exit 1; \
        fi
 
-# Entrypoint: initializes the PGLite brain, seeds skills, execs AlphaClaw.
+# Entrypoint initializes/migrates the brain before its sole HTTP owner starts.
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
