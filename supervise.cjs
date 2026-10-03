@@ -34,6 +34,26 @@ function privateValue(file, create) {
 }
 async function main() {
   if (process.env.GBRAIN_WEB_CHAT !== '1') {start(process.argv[2], process.argv.slice(3)); return;}
+  process.env.OPENCLAW_STATE_DIR = path.join(process.env.ALPHACLAW_ROOT_DIR, '.openclaw');
+  process.env.ALPHACLAW_SKIP_SYSTEM_CRON_INSTALL = '1';
+  const envFile = path.join(process.env.ALPHACLAW_ROOT_DIR, '.env');
+  const managedKeys = ['SETUP_PASSWORD', 'OPENCLAW_GATEWAY_TOKEN', 'REMOTE_MCP_API_TOKEN', 'REMOTE_MCP_URL', 'REMOTE_MCP_NAME', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GBRAIN_WEB_CHAT'];
+  const lines = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8').split('\n') : [];
+  const retained = lines.filter(line => !managedKeys.includes(line.split('=')[0].trim()));
+  for (const key of managedKeys) if (process.env[key]) retained.push(`${key}=${process.env[key]}`);
+  fs.writeFileSync(envFile, retained.join('\n'), {mode: 0o600}); fs.chmodSync(envFile, 0o600);
+  const stateDir = path.join(process.env.OPENCLAW_STATE_DIR, 'state');
+  const stateBackup = path.join(process.env.ALPHACLAW_ROOT_DIR, 'backups', 'openclaw-state-before-2026.9.8');
+  if (fs.existsSync(stateDir) && !fs.existsSync(stateBackup)) {
+    fs.mkdirSync(path.dirname(stateBackup), {recursive: true, mode: 0o700});
+    fs.cpSync(stateDir, stateBackup, {recursive: true});
+  }
+  // Upgrade existing shared state before the gateway or CLI agent opens it.
+  execFileSync('openclaw', ['doctor', '--fix', '--non-interactive'], {stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000});
+  console.log('[supervisor] OpenClaw state migration completed');
+  const cronDir = path.join(process.env.OPENCLAW_STATE_DIR, 'cron');
+  fs.mkdirSync(cronDir, {recursive: true});
+  fs.writeFileSync(path.join(cronDir, 'system-sync.json'), JSON.stringify({enabled: false, schedule: '0 * * * *'}));
   const dir = path.join(process.env.GBRAIN_HOME, '.gbrain', 'serve');
   fs.mkdirSync(dir, {recursive: true, mode: 0o700});
   process.env.GBRAIN_ADMIN_BOOTSTRAP_TOKEN = privateValue(path.join(dir, 'admin-token'), () => crypto.randomBytes(32).toString('hex'));
